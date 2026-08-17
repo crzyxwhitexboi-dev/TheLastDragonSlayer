@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The Last Dragon Slayer</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; padding: 18px; display: grid; place-items: center; background: #120d0b; color: #fff0d1; font-family: Georgia, serif; }
+    main { width: min(720px, 100%); overflow: hidden; border: 1px solid #b96428; border-radius: 16px; background: #21130f; box-shadow: 0 0 50px #000; }
+    header { padding: 28px 24px 20px; background: linear-gradient(135deg, #70200e, #25100c); }
+    h1 { margin: 0; font-size: clamp(2rem, 8vw, 3.6rem); }
+    header p { margin: 8px 0 0; color: #ffd481; }
+    section { padding: 20px; }
+    #status { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px; border: 1px solid #654020; border-radius: 10px; background: #100b09; }
+    .label { color: #e5a35d; font: 700 12px Arial, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+    .value { margin-top: 4px; line-height: 1.4; }
+    #story { min-height: 135px; margin: 18px 0; padding: 16px; white-space: pre-line; line-height: 1.6; border-left: 4px solid #cd722c; border-radius: 4px; background: #17100d; }
+    #actions, #battle { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    #get { grid-column: span 4; }
+    #battle { display: none; grid-template-columns: 1fr 1fr; }
+    button { padding: 12px 8px; border: 1px solid #e28b3a; border-radius: 8px; color: #fff2d4; background: #622411; font: inherit; cursor: pointer; }
+    button:hover { background: #85391c; }
+    button:disabled { opacity: .38; cursor: not-allowed; }
+    .note { margin: 18px 0 0; color: #d3b58c; font: 12px Arial, sans-serif; }
+    @media (max-width: 480px) { #status { grid-template-columns: 1fr; } #actions { grid-template-columns: 1fr 1fr; } #get { grid-column: span 2; } header { padding: 22px 18px; } section { padding: 16px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header><h1>The Last Dragon Slayer</h1><p>Save Ashmoor from Nythrax, the Ash Tyrant.</p></header>
+    <section>
+      <div id="status">
+        <div><div class="label">Current room</div><div class="value" id="room"></div></div>
+        <div><div class="label">Items collected</div><div class="value" id="count"></div></div>
+        <div><div class="label">Inventory</div><div class="value" id="inventory"></div></div>
+        <div><div class="label">Health</div><div class="value" id="health"></div></div>
+      </div>
+      <div id="story"></div>
+      <div id="actions">
+        <button data-go="North">Go North</button><button data-go="South">Go South</button><button data-go="East">Go East</button><button data-go="West">Go West</button>
+        <button id="get">Get item</button>
+      </div>
+      <div id="battle"><button id="attack">Attack with Dragonsbane</button><button id="heal">Use Ember Elixir</button></div>
+      <p class="note">Collect all six items before entering Nythrax's lair.</p>
+    </section>
+  </main>
+  <script>
+    const rooms = {
+      "Temple Entrance": {North: "Ancient Archives", South: "Sanctum of Embers", East: "Alchemist's Sanctum", West: "Hall of the Fallen"},
+      "Guardian's Armory": {South: "Hall of the Fallen", East: "Ancient Archives", item: "Guardian's Shield"},
+      "Ancient Archives": {West: "Guardian's Armory", East: "Hall of Kings", South: "Temple Entrance", item: "Sir Cedric's Journal"},
+      "Hall of Kings": {West: "Ancient Archives", South: "Alchemist's Sanctum", item: "Crown of Ashmoor"},
+      "Hall of the Fallen": {North: "Guardian's Armory", South: "Dragon's Lair", East: "Temple Entrance", item: "Dragonsbane"},
+      "Alchemist's Sanctum": {North: "Hall of Kings", West: "Temple Entrance", item: "Ember Elixir"},
+      "Sanctum of Embers": {North: "Temple Entrance", West: "Dragon's Lair", item: "Ember Relic"},
+      "Dragon's Lair": {North: "Hall of the Fallen", East: "Sanctum of Embers"}
+    };
+    let room = "Temple Entrance", inventory = [], playerHealth = 100, dragonHealth = 100, mode = "explore";
+    let story = "Sir Cedric vanished in the Ancient Catacombs beneath Ember Temple. Find the six relics, then face the last dragon.";
+    const el = id => document.getElementById(id);
+    function draw() {
+      el("room").textContent = room;
+      el("count").textContent = inventory.length + " / 6";
+      el("inventory").textContent = inventory.length ? inventory.join(", ") : "Empty";
+      el("health").textContent = playerHealth + " / 100";
+      el("story").textContent = story;
+      el("actions").style.display = mode === "explore" ? "grid" : "none";
+      el("battle").style.display = mode === "battle" ? "grid" : "none";
+      document.querySelectorAll("[data-go]").forEach(button => button.disabled = mode !== "explore" || !rooms[room][button.dataset.go]);
+      el("get").disabled = mode !== "explore" || !rooms[room].item;
+      el("attack").disabled = mode !== "battle";
+      el("heal").disabled = mode !== "battle" || !inventory.includes("Ember Elixir");
+    }
+    function move(direction) {
+      room = rooms[room][direction];
+      if (room !== "Dragon's Lair") story = "You enter the " + room + ".";
+      else if (inventory.length < 6) { mode = "end"; story = "Nythrax finds you unprepared. GAME OVER! Refresh the page to try again."; }
+      else { mode = "battle"; story = "Nythrax, the Ash Tyrant, blocks your path!\nYour health: " + playerHealth + " | Nythrax's health: " + dragonHealth; }
+      draw();
+    }
+    function getItem() { const item = rooms[room].item; inventory.push(item); delete rooms[room].item; story = "You grabbed " + item + "!"; draw(); }
+    function dragonTurn() {
+      if (dragonHealth > 0) { playerHealth -= 35; story += " Nythrax breathes fire for 35 damage."; }
+      if (playerHealth <= 0) { mode = "end"; story += "\n\nNythrax has defeated you. GAME OVER! Refresh the page to try again."; }
+      draw();
+    }
+    function attack() {
+      dragonHealth -= 25; story = "You slash Nythrax with Dragonsbane!";
+      if (dragonHealth <= 0) { mode = "end"; story += "\n\nYou behead Nythrax with Dragonsbane! Ashmoor is safe. Sir Cedric's voice echoes: \"You have done what I could not. Thank you, my grandchild.\""; draw(); }
+      else dragonTurn();
+    }
+    function heal() { inventory = inventory.filter(item => item !== "Ember Elixir"); playerHealth = 100; story = "You use the Ember Elixir and restore your health!"; dragonTurn(); }
+    document.querySelectorAll("[data-go]").forEach(button => button.onclick = () => move(button.dataset.go));
+    el("get").onclick = getItem; el("attack").onclick = attack; el("heal").onclick = heal; draw();
+  </script>
+</body>
+</html>
